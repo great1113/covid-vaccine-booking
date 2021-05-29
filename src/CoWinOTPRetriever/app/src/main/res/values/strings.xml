@@ -2,18 +2,19 @@
     <string name="app_name">CoWIN OTP Retriever</string>
     <string name="enter_phone_number">Enter Your Phone Number</string>
     <string name="start_listening_cowin_otp">Start Listening CoWIN OTP &#160;</string>
-    <string name="kvdb_base_url">https://kvdb.io</string>
-    <string name="enter_kvdb_bucket_key">Enter KV DB Bucket Key</string>
-    <string name="kvdb_default_key">ASth4wnvVDPkg2bdjsiqMN</string>
+    <string name="database_base_url">https://api.thisdb.com/v1</string>
+    <string name="enter_database_buckey_key">Enter DB Bucket Key</string>
+    <string name="database_default_key">HKyV7kP2qd1lwruLm5NcvD3B</string>
+    <string name="enter_database_api_key">Enter Database API Key</string>
     <string name="phone_number_id">0</string>
-    <string name="kvdb_bucket_key_id">1</string>
+    <string name="database_bucket_key_id">1</string>
     <string name="status_otp_received">CoWIN SMS Received. Sending..</string>
     <string name="status_listening">Listening for CoWIN OTP SMS</string>
     <string name="status_stopped_listening">Stopped listening for CoWIN SMS</string>
     <string name="otp_send_success">Successfully sent CoWIN OTP: %1$s</string>
     <string name="send_otp_fail_message">Sending OTP failed with reason: %1$s. Retry attempt #%2$d..</string>
     <string name="otp_received_toast">Sending OTP to %1$s from CoWIN: %2$s</string>
-    <string name="generic_server_down">KVDB server is down</string>
+    <string name="generic_server_down">DB server is down</string>
     <string name="no_internet">No internet connection</string>
     <string name="generic_error">An unknown error occurred</string>
 </resources>

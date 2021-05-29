@@ -26,14 +26,16 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var mCoWinSmsBroadcastReceiver: CoWinSmsBroadcastReceiver
     private lateinit var mMainActivityReceiver: BroadcastReceiver
-    private lateinit var mKvdbUrl: String
+    private lateinit var databaseURL: String
     private var mReceiverIsActive: Boolean = false
     private var mCurrentOTP: Int = 0
 
     private lateinit var mPhoneNumberEntry: EditText
     private lateinit var mPhoneNumberEntryKeyListener: KeyListener
-    private lateinit var mKvdbBucketkeyEntry: EditText
-    private lateinit var mKvdbBucketkeyEntryKeyListener: KeyListener
+    private lateinit var mBucketkeyEntry: EditText
+    private lateinit var mBucketkeyEntryKeyListener: KeyListener
+    private lateinit var mApikeyEntry: EditText
+    private lateinit var mApikeyEntryKeyListener: KeyListener
     private lateinit var mStatusTextView: TextView
     private lateinit var mStartListeningCowinOtpSwitch: SwitchCompat
 
@@ -42,6 +44,8 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -83,8 +87,11 @@ class MainActivity : AppCompatActivity() {
         mPhoneNumberEntry = findViewById(R.id.PhoneNumberEntry)
         mPhoneNumberEntryKeyListener = mPhoneNumberEntry.keyListener
 
-        mKvdbBucketkeyEntry = findViewById(R.id.KvdbBucketkeyEntry)
-        mKvdbBucketkeyEntryKeyListener = mKvdbBucketkeyEntry.keyListener
+        mBucketkeyEntry = findViewById(R.id.DatabaseBucketkeyEntry)
+        mBucketkeyEntryKeyListener = mBucketkeyEntry.keyListener
+
+        mApikeyEntry = findViewById(R.id.DatabaseAPIKeyEntry)
+        mApikeyEntryKeyListener = mApikeyEntry.keyListener
 
         mStatusTextView = findViewById(R.id.StatusTextView)
         mHandler = Handler(Looper.getMainLooper())
@@ -107,13 +114,20 @@ class MainActivity : AppCompatActivity() {
         Log.d("OTPDebug", "onResume() called")
         if(!mStartListeningCowinOtpSwitch.isChecked) {
             val savedPhoneNumber = mSharedPreferences.getString(getString(R.string.phone_number_id), null)
-            val savedBucketKey = mSharedPreferences.getString(getString(R.string.kvdb_bucket_key_id), getString(R.string.kvdb_default_key))
+            val savedBucketKey = mSharedPreferences.getString(getString(R.string.database_bucket_key_id), getString(R.string.database_default_key))
+            val savedApiKey = mSharedPreferences.getString("2",null);
             if(savedPhoneNumber != null) {
                 mPhoneNumberEntry.setText(savedPhoneNumber)
                 Log.d("OTPDebug", "onResume() set PhoneNumber from cache.")
             }
-            mKvdbBucketkeyEntry.setText(savedBucketKey)
+
+            mBucketkeyEntry.setText(savedBucketKey)
             Log.d("OTPDebug", "onResume() set BucketKey from cache.")
+
+            if(savedApiKey!=null){
+                mApikeyEntry.setText(savedApiKey);
+                Log.d("OTPDebug","onResume() set APIkey from cache.")
+            }
         }
     }
 
@@ -122,7 +136,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("OTPDebug", "onPause() called")
         val editor = mSharedPreferences.edit()
         editor.putString(getString(R.string.phone_number_id), mPhoneNumberEntry.text.toString())
-        editor.putString(getString(R.string.kvdb_bucket_key_id), mKvdbBucketkeyEntry.text.toString())
+        editor.putString(getString(R.string.database_bucket_key_id), mBucketkeyEntry.text.toString())
+        editor.putString("2",mApikeyEntry.text.toString());
         Log.d("OTPDebug", "onPause() called. Saving user entered values to cache.")
         editor.apply()
     }
@@ -178,7 +193,10 @@ class MainActivity : AppCompatActivity() {
         mPhoneNumberEntry.keyListener = null
 
         // disable kvdb bucket key entry
-        mKvdbBucketkeyEntry.keyListener = null
+        mBucketkeyEntry.keyListener = null
+
+        //disable api key entry
+        mApikeyEntry.keyListener=null
 
         // initialize sms retrieved intent filter
         val intentFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
@@ -190,9 +208,80 @@ class MainActivity : AppCompatActivity() {
         mReceiverIsActive = true
 
         // set url for sending the cowin otp sms
-        mKvdbUrl = "${resources.getString(R.string.kvdb_base_url)}/${mKvdbBucketkeyEntry.text}/${mPhoneNumberEntry.text}"
+        databaseURL = "${resources.getString(R.string.database_base_url)}/${mBucketkeyEntry.text}/${mPhoneNumberEntry.text}"
+        Log.d("URL","${databaseURL}")
+
+
         mStatusTextView.text = getString(R.string.status_listening)
         Toast.makeText(this, "CoWIN SMS Retriever has started", Toast.LENGTH_SHORT).show()
+        /*
+        //test a put
+        val putRequest = object : StringRequest(
+            Method.POST,
+            databaseURL,
+            { response -> Log.d("Putresponse","Response is "+response.toString())
+            },
+            { response ->
+
+                Log.d("puterror",response.message.toString())
+            })
+        {
+            override fun getBodyContentType(): String? {
+                return "application/x-www-form-urlencoded; charset=UTF-8"
+            }
+
+
+            override fun getBody(): ByteArray{
+                return "Somthing".toByteArray()
+            }
+
+
+            override fun getHeaders(): MutableMap<String, String> {
+                val headers = HashMap<String, String>()
+                headers["X-Api-Key"] = "cf5320f3169a97badd0a8c80c87a612926c9fd2f"
+                Log.d("PUt Request","Headers: ${headers.toString()}")
+                return headers
+            }
+        }
+
+        Log.d("Put Request",putRequest.headers.get("X-Api-Key").toString())
+
+        Log.d("Put request body:\t ",putRequest.body.decodeToString())
+        // add the request to the RequestQueue.
+        ApplicationController.getInstance().addToRequestQueue(putRequest)
+
+        //test a get
+        val stringRequest = object : StringRequest(
+            Method.GET,
+            databaseURL,
+            { response -> Log.d("Test","Response is "+response.toString())
+            },
+            { response ->
+
+                Log.d("Test",getString(R.string.send_otp_fail_message,
+                    VolleyErrorHelper.getMessage(response, this), 0))
+            })
+        {
+
+            override fun getBodyContentType(): String {
+                return "text/plain; charset=utf-8"
+            }
+
+            override fun getHeaders(): MutableMap<String, String> {
+                val headers = HashMap<String, String>()
+                headers["X-Api-Key"] = "cf5320f3169a97badd0a8c80c87a612926c9fd2f"
+                Log.d("Request","Headers: ${headers.toString()}")
+                return headers
+            }
+        }
+
+        Log.d("Request",stringRequest.headers.get("X-Api-Key").toString())
+
+        // add the request to the RequestQueue.
+        ApplicationController.getInstance().addToRequestQueue(stringRequest)
+        */
+
+
     }
 
     private fun endSMSListener() {
@@ -201,7 +290,10 @@ class MainActivity : AppCompatActivity() {
         mPhoneNumberEntry.keyListener = mPhoneNumberEntryKeyListener
 
         // enable kvdb bucket key entry
-        mKvdbBucketkeyEntry.keyListener = mKvdbBucketkeyEntryKeyListener
+        mBucketkeyEntry.keyListener = mBucketkeyEntryKeyListener
+
+        //enable api key entry
+        mApikeyEntry.keyListener = mApikeyEntryKeyListener
 
         // mark receiver as inactive
         mReceiverIsActive = false
@@ -213,15 +305,18 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "CoWIN SMS Retriever has stopped", Toast.LENGTH_SHORT).show()
     }
 
+
+
+
     private fun onOTPReceived(sender: String, sms: String, otp: Int, retryCounter: Int) {
         if(retryCounter == 0) {
             Log.d("OTPDebug", "New CoWIN OTP received.")
-            Toast.makeText(this, getString(R.string.otp_received_toast, mKvdbUrl, sender), Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.otp_received_toast, databaseURL, sender), Toast.LENGTH_LONG).show()
         }
         // request a string response from the provided URL.
         val stringRequest = object : StringRequest(
-            Method.PUT,
-            mKvdbUrl,
+            Method.POST,
+            databaseURL,
             { response ->
                 val trimmedResponse = if(response.length > 500) { response.substring(0, 500) } else { response }
                 // Display the first 500 characters of the response string.
@@ -252,11 +347,14 @@ class MainActivity : AppCompatActivity() {
 
             override fun getHeaders(): MutableMap<String, String> {
                 val headers = HashMap<String, String>()
-                headers["Content-Type"] = "text/plain"
-                headers["charset"] = "utf-8"
+                headers["X-Api-Key"] = "${mApikeyEntry.text}"
+                Log.d("Request","Headers: ${headers.toString()}")
                 return headers
             }
         }
+
+        Log.d("Request",stringRequest.headers.get("X-Api-Key").toString())
+
         // add the request to the RequestQueue.
         ApplicationController.getInstance().addToRequestQueue(stringRequest)
     }

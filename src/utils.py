@@ -3,9 +3,8 @@ from hashlib import sha256
 from collections import Counter
 from inputimeout import inputimeout, TimeoutOccurred
 import tabulate, copy, time, datetime, requests, sys, os, random
-from captcha import captcha_builder_manual, captcha_builder_auto
+from captcha import captcha_builder_auto
 import uuid
-from ratelimit import handle_rate_limited
 
 BOOKING_URL = "https://cdn-api.co-vin.in/api/v2/appointment/schedule"
 BENEFICIARIES_URL = "https://cdn-api.co-vin.in/api/v2/appointment/beneficiaries"
@@ -14,6 +13,9 @@ CALENDAR_URL_PINCODE = "https://cdn-api.co-vin.in/api/v2/appointment/sessions/ca
 CAPTCHA_URL = "https://cdn-api.co-vin.in/api/v2/auth/getRecaptcha"
 OTP_PUBLIC_URL = "https://cdn-api.co-vin.in/api/v2/auth/public/generateOTP"
 OTP_PRO_URL = "https://cdn-api.co-vin.in/api/v2/auth/generateMobileOTP"
+THIS_DB_BASE_URL="https://api.thisdb.com/v1"
+THIS_DB_BUCKET_KEY = "HKyV7kP2qd1lwruLm5NcvD3B"
+THIS_DB_API_KEY = "cf5320f3169a97badd0a8c80c87a612926c9fd2f"
 
 WARNING_BEEP_DURATION = (1000, 5000)
 
@@ -361,11 +363,7 @@ def check_calendar_by_district(
                 headers=request_header,
             )
 
-            if resp.status_code == 403 or resp.status_code == 429:
-                handle_rate_limited()
-                return False
-
-            elif resp.status_code == 401:
+            if resp.status_code == 401:
                 print("TOKEN INVALID")
                 return False
 
@@ -431,11 +429,7 @@ def check_calendar_by_pincode(
                 base_url.format(location["pincode"], start_date), headers=request_header
             )
 
-            if resp.status_code == 403 or resp.status_code == 429:
-                handle_rate_limited()
-                return False
-
-            elif resp.status_code == 401:
+            if resp.status_code == 401:
                 print("TOKEN INVALID")
                 return False
 
@@ -475,7 +469,7 @@ def generate_captcha(request_header, captcha_automation):
     print(f'Captcha Response Code: {resp.status_code}')
 
     if resp.status_code == 200 and captcha_automation == "n":
-        return captcha_builder_manual(resp.json())
+        return captcha_builder_auto(resp.json())
     elif resp.status_code == 200 and captcha_automation == "y":
         return captcha_builder_auto(resp.json())
 
@@ -506,11 +500,7 @@ def book_appointment(request_header, details, mobile, generate_captcha_pref):
             print(f"Booking Response Code: {resp.status_code}")
             print(f"Booking Response : {resp.text}")
 
-            if resp.status_code == 403 or resp.status_code == 429:
-                handle_rate_limited()
-                pass
-
-            elif resp.status_code == 401:
+            if resp.status_code == 401:
                 print("TOKEN INVALID")
                 return 0
 
@@ -880,7 +870,6 @@ def get_districts(request_header):
 def fetch_beneficiaries(request_header):
     return requests.get(BENEFICIARIES_URL, headers=request_header)
 
-
     
 def vaccine_dose2_duedate(vaccine_type):
     """
@@ -1010,7 +999,9 @@ def get_min_age(beneficiary_dtls):
 
 def clear_bucket_and_send_OTP(storage_url, mobile, request_header):
     print("clearing OTP bucket: " + storage_url)
-    response = requests.put(storage_url, data={})
+    response = requests.post(storage_url, data={},headers = {
+        'X-Api-Key':THIS_DB_API_KEY
+    })
     data = {
         "mobile": mobile,
         "secret": "U2FsdGVkX1+z/4Nr9nta+2DrVJSv7KS6VoQUSQ1ZXYDx/CJUkWxFYG6P3iM/VW+6jLQ9RDQVzp/RcZ8kbT41xw==",
@@ -1027,9 +1018,7 @@ def clear_bucket_and_send_OTP(storage_url, mobile, request_header):
     else:
         print("Unable to Create OTP")
         print(txnId.text)
-        if txnId.status_code == 403 or txnId.status_code == 429:
-            handle_rate_limited()
-        time.sleep(5)  # Saftey net againt rate limit
+        time.sleep(5)  # Saftey net against rate limit
         txnId = None
 
     return txnId
@@ -1039,8 +1028,11 @@ def generate_token_OTP(mobile, request_header):
     """
     This function generate OTP and returns a new token or None when not able to get token
     """
-    storage_url = "https://kvdb.io/ASth4wnvVDPkg2bdjsiqMN/" + mobile
+    storage_url = THIS_DB_BASE_URL.strip()+"/"+THIS_DB_BUCKET_KEY.strip()+"/" + mobile.strip()
 
+    this_db_request_header = {
+        'X-Api-Key':THIS_DB_API_KEY
+    }
     txnId = clear_bucket_and_send_OTP(storage_url, mobile, request_header)
 
     if txnId is None:
@@ -1049,7 +1041,7 @@ def generate_token_OTP(mobile, request_header):
     time.sleep(10)
     t_end = time.time() + 60 * 3  # try to read OTP for atmost 3 minutes
     while time.time() < t_end:
-        response = requests.get(storage_url)
+        response = requests.get(storage_url,headers=this_db_request_header)
         if response.status_code == 200:
             print("OTP SMS is:" + response.text)
             print("OTP SMS len is:" + str(len(response.text)))
@@ -1139,8 +1131,6 @@ def generate_token_OTP_manual(mobile, request_header):
             else:
                 print('Unable to Generate OTP')
                 print(txnId.status_code, txnId.text)
-                if txnId.status_code == 403 or txnId.status_code == 429:
-                    handle_rate_limited()
 
                 retry = input(f"Retry with {mobile} ? (y/n Default y): ")
                 retry = retry if retry else 'y'
