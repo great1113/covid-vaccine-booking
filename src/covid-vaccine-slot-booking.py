@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import requests, sys, argparse, os, datetime
 import jwt
 from utils import generate_token_OTP, generate_token_OTP_manual, check_and_book, beep, BENEFICIARIES_URL, WARNING_BEEP_DURATION, \
-    display_info_dict, save_user_info, collect_user_details, get_saved_user_info, confirm_and_proceed, get_dose_num, display_table, fetch_beneficiaries
-
+    display_info_dict, save_user_info, collect_user_details, get_saved_user_info, confirm_and_proceed, get_dose_num, display_table, fetch_beneficiaries, \
+    create_a_bucket, print_details_for_app
 def is_token_valid(token):
     payload = jwt.decode(token, options={"verify_signature": False})
     remaining_seconds = payload['iat'] + 600 - int(time.time())
@@ -29,6 +29,15 @@ def main():
     print('Running Script')
     beep(500, 150)
 
+    api_key = input("Please enter your Api key: ")
+    print("Creating a bucket .....\n")
+    bucket_key = input("Please enter your bucket key or press enter to create a new one: ")
+    if(len(bucket_key)<5):
+        bucket_key = create_a_bucket(api_key)
+    
+    
+    
+
     try:
         base_request_header = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36',
@@ -41,14 +50,16 @@ def main():
         if args.token:
             token = args.token
         else:
+
             mobile = input("Enter the registered mobile number: ")
+            print_details_for_app(mobile,api_key,bucket_key)
             filename = filename + mobile + ".json"
             otp_pref = input("\nDo you want to enter OTP manually, instead of auto-read? \nRemember selecting n would require some setup described in README (y/n Default n): ")
             otp_pref = otp_pref if otp_pref else "n"
             while token is None:
                 if otp_pref=="n":
                     try:
-                        token = generate_token_OTP(mobile, base_request_header)
+                        token = generate_token_OTP(mobile, base_request_header,api_key,bucket_key)
                     except Exception as e:
                         print(str(e))
                         print('OTP Retrying in 5 seconds')
@@ -135,7 +146,7 @@ def main():
                     while token is None:
                         if otp_pref=="n":
                             try:
-                                token = generate_token_OTP(mobile, base_request_header)
+                                token = generate_token_OTP(mobile, base_request_header,api_key,bucket_key)
                             except Exception as e:
                                 print(str(e))
                                 print('OTP Retrying in 5 seconds')

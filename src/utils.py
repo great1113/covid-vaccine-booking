@@ -14,8 +14,6 @@ CAPTCHA_URL = "https://cdn-api.co-vin.in/api/v2/auth/getRecaptcha"
 OTP_PUBLIC_URL = "https://cdn-api.co-vin.in/api/v2/auth/public/generateOTP"
 OTP_PRO_URL = "https://cdn-api.co-vin.in/api/v2/auth/generateMobileOTP"
 THIS_DB_BASE_URL="https://api.thisdb.com/v1"
-THIS_DB_BUCKET_KEY = "HKyV7kP2qd1lwruLm5NcvD3B"
-THIS_DB_API_KEY = "cf5320f3169a97badd0a8c80c87a612926c9fd2f"
 
 WARNING_BEEP_DURATION = (1000, 5000)
 
@@ -41,6 +39,29 @@ else:
 
     def beep(freq, duration):
         winsound.Beep(freq, duration)
+
+
+def print_details_for_app(mobile,api_key,bucket_key):
+    print("\n================================= Generated values =================================")
+    print("================================= For Android App ====================================\n")
+    print(f'Bucket Value: {bucket_key}')
+    print(f'Api Value: {api_key}')
+    print("\n===================================================================================\n")
+    print("================================= For iOS Shortcuts ================================\n")
+    print(f"{THIS_DB_BASE_URL}/{bucket_key}/{mobile}")
+    print("\n===================================================================================\n")
+
+
+def create_a_bucket(api_key):
+    resp = requests.post("https://api.thisdb.com/v1/",data={}, headers={"X-Api-Key":api_key})
+    bucket_key = str(resp.content.decode("utf-8"))
+
+    if resp.status_code == 200:
+        return bucket_key
+    else:
+        print("Please enter a correct api key.")
+        exit()
+
 
 
 def viable_options(resp, minimum_slots, min_age_booking, fee_type, dose_num):
@@ -996,10 +1017,10 @@ def get_min_age(beneficiary_dtls):
     return min_age
 
 
-def clear_bucket_and_send_OTP(storage_url, mobile, request_header):
+def clear_bucket_and_send_OTP(storage_url, mobile, request_header,api_key):
     print("clearing OTP bucket: " + storage_url)
-    response = requests.post(storage_url, data={},headers = {
-        'X-Api-Key':THIS_DB_API_KEY
+    response = requests.delete(storage_url, data={},headers = {
+        'X-Api-Key':api_key.strip()
     })
     data = {
         "mobile": mobile,
@@ -1023,16 +1044,16 @@ def clear_bucket_and_send_OTP(storage_url, mobile, request_header):
     return txnId
 
 
-def generate_token_OTP(mobile, request_header):
+def generate_token_OTP(mobile, request_header,api_key,bucket_key):
     """
     This function generate OTP and returns a new token or None when not able to get token
     """
-    storage_url = THIS_DB_BASE_URL.strip()+"/"+THIS_DB_BUCKET_KEY.strip()+"/" + mobile.strip()
+    storage_url = THIS_DB_BASE_URL.strip()+"/"+bucket_key.strip()+"/" + mobile.strip()
 
     this_db_request_header = {
-        'X-Api-Key':THIS_DB_API_KEY
+        'X-Api-Key':api_key.strip()
     }
-    txnId = clear_bucket_and_send_OTP(storage_url, mobile, request_header)
+    txnId = clear_bucket_and_send_OTP(storage_url, mobile, request_header,api_key)
 
     if txnId is None:
         return txnId
