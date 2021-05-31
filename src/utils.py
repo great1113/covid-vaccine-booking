@@ -41,6 +41,22 @@ else:
         winsound.Beep(freq, duration)
 
 
+
+def get_api_bucket_from_file(api_file):
+    with open(api_file, "r") as f:
+        data = json.load(f)
+    return data
+
+def save_api_and_bucket_key(api_file,api_key,bucket_key):
+    details={
+        'api_key':api_key,
+        'bucket_key':bucket_key
+    }
+    with open(api_file, "w") as f:
+        # JSON pretty save to file
+        json.dump(details, f, sort_keys=True, indent=4)
+
+
 def print_details_for_app(mobile,api_key,bucket_key):
     print("\n================================= Generated values =================================")
     print("================================= For Android App ====================================\n")

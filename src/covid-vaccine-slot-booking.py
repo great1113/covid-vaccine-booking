@@ -8,7 +8,7 @@ import requests, sys, argparse, os, datetime
 import jwt
 from utils import generate_token_OTP, generate_token_OTP_manual, check_and_book, beep, BENEFICIARIES_URL, WARNING_BEEP_DURATION, \
     display_info_dict, save_user_info, collect_user_details, get_saved_user_info, confirm_and_proceed, get_dose_num, display_table, fetch_beneficiaries, \
-    create_a_bucket, print_details_for_app
+    create_a_bucket, print_details_for_app, get_api_bucket_from_file, save_api_and_bucket_key
 def is_token_valid(token):
     payload = jwt.decode(token, options={"verify_signature": False})
     remaining_seconds = payload['iat'] + 600 - int(time.time())
@@ -24,18 +24,32 @@ def main():
     args = parser.parse_args()
 
     filename = 'vaccine-booking-details-'
+    api_file = 'recent-key-values.json'
     mobile = None
 
     print('Running Script')
     beep(500, 150)
+    
+    api_key=''
+    bucket_key=''
 
-    api_key = input("Please enter your Api key: ")
-    print("Creating a bucket .....\n")
-    bucket_key = input("Please enter your bucket key or press enter to create a new one: ")
-    if(len(bucket_key)<5):
-        bucket_key = create_a_bucket(api_key)
+    key_pref = 'n'
+    if(os.path.exists(api_file)):
+        key_pref = input("Would you like to re-use the previously used api_key and bucket_key? (y/n Default y): ")
+        key_pref = key_pref if key_pref else 'y'
+
     
-    
+    if key_pref == 'y':
+        data = get_api_bucket_from_file(api_file)
+        api_key=data['api_key']
+        bucket_key= data['bucket_key']
+    else: 
+        api_key = input("Please enter your Api key: ")
+        bucket_key = input("Please enter your bucket key or press enter to create a new one: ")
+        if(len(bucket_key)<5):
+            print("Creating a bucket .....\n")
+            bucket_key = create_a_bucket(api_key)
+        save_api_and_bucket_key(api_file,api_key,bucket_key)
     
 
     try:
@@ -43,7 +57,7 @@ def main():
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36',
             'origin': 'https://selfregistration.cowin.gov.in/',
             'referer': 'https://selfregistration.cowin.gov.in/'
-        
+         
         }
 
         token = None
